@@ -66,6 +66,8 @@ export default function LoginScreen() {
           value={name}
           onChangeText={setName}
           autoCapitalize="words"
+          textContentType="name"
+          autoComplete="name"
         />
       )}
       <TextInput
@@ -75,6 +77,8 @@ export default function LoginScreen() {
         onChangeText={setEmail}
         autoCapitalize="none"
         keyboardType="email-address"
+        textContentType="username"
+        autoComplete="email"
       />
       <TextInput
         style={styles.input}
@@ -82,6 +86,8 @@ export default function LoginScreen() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+        textContentType={isSignup ? 'newPassword' : 'password'}
+        autoComplete={isSignup ? 'new-password' : 'current-password'}
       />
 
       <Pressable

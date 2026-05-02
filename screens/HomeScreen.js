@@ -6,18 +6,25 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  orderBy,
+  query,
+} from 'firebase/firestore';
 import { auth, db } from '../firebase';
-
-const DUMMY_FEED = [
-  { id: '1', author: '민수', when: '방금 전', emoji: '🏌️' },
-  { id: '2', author: '영희', when: '1시간 전', emoji: '⛳' },
-  { id: '3', author: '준호', when: '오늘 오전', emoji: '🌳' },
-];
+import { timeAgo } from '../utils/timeAgo';
+import ComposeScreen from './ComposeScreen';
 
 export default function HomeScreen() {
   const [profile, setProfile] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [composing, setComposing] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const load = async () => {
@@ -27,8 +34,25 @@ export default function HomeScreen() {
     load();
   }, []);
 
+  useEffect(() => {
+    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      setPosts(
+        snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            createdAtDate: data.createdAt?.toDate?.() ?? null,
+          };
+        }),
+      );
+    });
+    return unsub;
+  }, []);
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>안녕하세요</Text>
@@ -42,26 +66,42 @@ export default function HomeScreen() {
       <Text style={styles.sectionTitle}>오늘의 친구들</Text>
 
       <FlatList
-        data={DUMMY_FEED}
+        data={posts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <Text style={styles.cardEmoji}>{item.emoji}</Text>
-            <View style={styles.cardBody}>
-              <Text style={styles.cardAuthor}>{item.author}</Text>
-              <Text style={styles.cardWhen}>{item.when}</Text>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardAuthor}>{item.authorName}</Text>
+              <Text style={styles.cardWhen}>{timeAgo(item.createdAtDate)}</Text>
             </View>
+            <Text style={styles.cardText}>{item.text}</Text>
           </View>
         )}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>아직 글이 없어요</Text>
+            <Text style={styles.emptySub}>첫 글을 남겨보세요 ⛳</Text>
+          </View>
+        }
+        contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}
       />
 
       <Pressable
-        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-        onPress={() => alert('곧 카메라 화면이 생겨요')}
+        style={({ pressed }) => [
+          styles.fab,
+          { bottom: 16 + insets.bottom },
+          pressed && styles.fabPressed,
+        ]}
+        onPress={() => setComposing(true)}
       >
-        <Text style={styles.fabText}>＋ 영상 올리기</Text>
+        <Text style={styles.fabText}>＋ 한마디 남기기</Text>
       </Pressable>
+
+      <ComposeScreen
+        visible={composing}
+        onClose={() => setComposing(false)}
+        authorName={profile?.name || '익명'}
+      />
     </View>
   );
 }
@@ -70,7 +110,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F0',
-    paddingTop: 60,
     paddingHorizontal: 24,
   },
   header: {
@@ -104,34 +143,47 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 2,
   },
-  cardEmoji: {
-    fontSize: 40,
-    marginRight: 16,
-  },
-  cardBody: {
-    flex: 1,
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   cardAuthor: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#2D5016',
   },
   cardWhen: {
-    fontSize: 14,
+    fontSize: 13,
+    color: '#999',
+  },
+  cardText: {
+    fontSize: 17,
+    color: '#222',
+    lineHeight: 24,
+  },
+  empty: {
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  emptyText: {
+    fontSize: 18,
     color: '#888',
-    marginTop: 4,
+    marginBottom: 8,
+  },
+  emptySub: {
+    fontSize: 15,
+    color: '#AAA',
   },
   fab: {
     position: 'absolute',
-    bottom: 32,
     left: 24,
     right: 24,
     backgroundColor: '#4A7C2E',

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './firebase';
 import LoginScreen from './screens/LoginScreen';
@@ -18,19 +19,19 @@ export default function App() {
     return unsub;
   }, []);
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4A7C2E" />
-      </View>
-    );
-  }
-
   return (
-    <>
-      {user ? <HomeScreen /> : <LoginScreen />}
+    <SafeAreaProvider>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#4A7C2E" />
+        </View>
+      ) : user ? (
+        <HomeScreen />
+      ) : (
+        <LoginScreen />
+      )}
       <StatusBar style="auto" />
-    </>
+    </SafeAreaProvider>
   );
 }
 
