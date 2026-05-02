@@ -15,27 +15,64 @@ import {
   onSnapshot,
   orderBy,
   query,
+  updateDoc,
+  where,
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { timeAgo } from '../utils/timeAgo';
+import { generateFriendCode } from '../utils/friendCode';
 import ComposeScreen from './ComposeScreen';
+import FriendsScreen from './FriendsScreen';
 
 export default function HomeScreen() {
   const [profile, setProfile] = useState(null);
+  const [friendUids, setFriendUids] = useState([]);
   const [posts, setPosts] = useState([]);
   const [composing, setComposing] = useState(false);
+  const [showingFriends, setShowingFriends] = useState(false);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const load = async () => {
-      const snap = await getDoc(doc(db, 'users', auth.currentUser.uid));
-      if (snap.exists()) setProfile(snap.data());
+      const ref = doc(db, 'users', auth.currentUser.uid);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (!data.friendCode) {
+          const code = generateFriendCode();
+          await updateDoc(ref, { friendCode: code });
+          setProfile({ ...data, friendCode: code });
+        } else {
+          setProfile(data);
+        }
+      }
     };
     load();
   }, []);
 
   useEffect(() => {
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+    const myUid = auth.currentUser.uid;
+    const friendQ = query(
+      collection(db, 'friendships'),
+      where('users', 'array-contains', myUid),
+    );
+    const unsub = onSnapshot(friendQ, (snap) => {
+      const uids = snap.docs
+        .map((d) => d.data().users.find((u) => u !== myUid))
+        .filter(Boolean);
+      setFriendUids(uids);
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    const myUid = auth.currentUser.uid;
+    const visibleAuthors = [myUid, ...friendUids];
+    const q = query(
+      collection(db, 'posts'),
+      where('authorId', 'in', visibleAuthors),
+      orderBy('createdAt', 'desc'),
+    );
     const unsub = onSnapshot(q, (snap) => {
       setPosts(
         snap.docs.map((d) => {
@@ -49,7 +86,7 @@ export default function HomeScreen() {
       );
     });
     return unsub;
-  }, []);
+  }, [friendUids]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
@@ -58,9 +95,14 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>안녕하세요</Text>
           <Text style={styles.name}>{profile?.name || '...'}님 👋</Text>
         </View>
-        <Pressable onPress={() => signOut(auth)} hitSlop={12}>
-          <Text style={styles.signOut}>로그아웃</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable onPress={() => setShowingFriends(true)} hitSlop={12}>
+            <Text style={styles.headerButton}>친구</Text>
+          </Pressable>
+          <Pressable onPress={() => signOut(auth)} hitSlop={12}>
+            <Text style={styles.signOut}>로그아웃</Text>
+          </Pressable>
+        </View>
       </View>
 
       <Text style={styles.sectionTitle}>오늘의 친구들</Text>
@@ -80,7 +122,11 @@ export default function HomeScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyText}>아직 글이 없어요</Text>
-            <Text style={styles.emptySub}>첫 글을 남겨보세요 ⛳</Text>
+            <Text style={styles.emptySub}>
+              {friendUids.length === 0
+                ? '친구를 추가하고 첫 글을 남겨보세요 ⛳'
+                : '첫 글을 남겨보세요 ⛳'}
+            </Text>
           </View>
         }
         contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}
@@ -102,6 +148,12 @@ export default function HomeScreen() {
         onClose={() => setComposing(false)}
         authorName={profile?.name || '익명'}
       />
+
+      <FriendsScreen
+        visible={showingFriends}
+        onClose={() => setShowingFriends(false)}
+        profile={profile}
+      />
     </View>
   );
 }
@@ -118,6 +170,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginBottom: 32,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
   greeting: {
     fontSize: 16,
     color: '#666',
@@ -126,6 +183,12 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: '#2D5016',
+  },
+  headerButton: {
+    color: '#4A7C2E',
+    fontSize: 15,
+    fontWeight: '600',
+    padding: 4,
   },
   signOut: {
     color: '#888',

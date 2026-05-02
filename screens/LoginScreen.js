@@ -15,6 +15,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
+import { generateFriendCode } from '../utils/friendCode';
 
 export default function LoginScreen() {
   const [mode, setMode] = useState('signin');
@@ -37,6 +38,7 @@ export default function LoginScreen() {
         await setDoc(doc(db, 'users', cred.user.uid), {
           name,
           email,
+          friendCode: generateFriendCode(),
           createdAt: serverTimestamp(),
         });
       } else {
