@@ -24,6 +24,17 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "친구에게 보여줄 영상을 찍을 때 카메라가 필요해요.",
+          "microphonePermission": "영상에 소리를 담을 때 마이크가 필요해요.",
+          "photosPermission": "갤러리에서 영상을 고를 때 필요해요."
+        }
+      ]
+    ]
   }
 }

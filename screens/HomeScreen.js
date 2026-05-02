@@ -19,10 +19,10 @@ import {
   where,
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import { timeAgo } from '../utils/timeAgo';
 import { generateFriendCode } from '../utils/friendCode';
 import ComposeScreen from './ComposeScreen';
 import FriendsScreen from './FriendsScreen';
+import PostCard from '../components/PostCard';
 
 export default function HomeScreen() {
   const [profile, setProfile] = useState(null);
@@ -110,15 +110,7 @@ export default function HomeScreen() {
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardAuthor}>{item.authorName}</Text>
-              <Text style={styles.cardWhen}>{timeAgo(item.createdAtDate)}</Text>
-            </View>
-            <Text style={styles.cardText}>{item.text}</Text>
-          </View>
-        )}
+        renderItem={({ item }) => <PostCard post={item} />}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyText}>아직 글이 없어요</Text>
@@ -140,7 +132,7 @@ export default function HomeScreen() {
         ]}
         onPress={() => setComposing(true)}
       >
-        <Text style={styles.fabText}>＋ 한마디 남기기</Text>
+        <Text style={styles.fabText}>＋ 오늘 한마디</Text>
       </Pressable>
 
       <ComposeScreen
