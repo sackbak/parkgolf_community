@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signOut } from 'firebase/auth';
 import {
@@ -20,9 +14,8 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { generateFriendCode } from '../utils/friendCode';
+import { colors, fontSize, fontWeight, radius, shadow, spacing } from '../theme';
 import ComposeScreen from './ComposeScreen';
-import FriendsScreen from './FriendsScreen';
-import CoursesScreen from './CoursesScreen';
 import PostCard from '../components/PostCard';
 
 export default function HomeScreen() {
@@ -30,8 +23,6 @@ export default function HomeScreen() {
   const [friendUids, setFriendUids] = useState([]);
   const [posts, setPosts] = useState([]);
   const [composing, setComposing] = useState(false);
-  const [showingFriends, setShowingFriends] = useState(false);
-  const [showingCourses, setShowingCourses] = useState(false);
   const [visibleIds, setVisibleIds] = useState(new Set());
   const insets = useSafeAreaInsets();
 
@@ -97,23 +88,15 @@ export default function HomeScreen() {
   }, [friendUids]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>안녕하세요</Text>
           <Text style={styles.name}>{profile?.name || '...'}님 👋</Text>
         </View>
-        <View style={styles.headerActions}>
-          <Pressable onPress={() => setShowingCourses(true)} hitSlop={12}>
-            <Text style={styles.headerButton}>골프장</Text>
-          </Pressable>
-          <Pressable onPress={() => setShowingFriends(true)} hitSlop={12}>
-            <Text style={styles.headerButton}>친구</Text>
-          </Pressable>
-          <Pressable onPress={() => signOut(auth)} hitSlop={12}>
-            <Text style={styles.signOut}>로그아웃</Text>
-          </Pressable>
-        </View>
+        <Pressable onPress={() => signOut(auth)} hitSlop={12}>
+          <Text style={styles.signOut}>로그아웃</Text>
+        </Pressable>
       </View>
 
       <Text style={styles.sectionTitle}>오늘의 친구들</Text>
@@ -136,15 +119,11 @@ export default function HomeScreen() {
             </Text>
           </View>
         }
-        contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}
+        contentContainerStyle={{ paddingBottom: 120 }}
       />
 
       <Pressable
-        style={({ pressed }) => [
-          styles.fab,
-          { bottom: 16 + insets.bottom },
-          pressed && styles.fabPressed,
-        ]}
+        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
         onPress={() => setComposing(true)}
       >
         <Text style={styles.fabText}>＋ 오늘 한마디</Text>
@@ -155,17 +134,6 @@ export default function HomeScreen() {
         onClose={() => setComposing(false)}
         authorName={profile?.name || '익명'}
       />
-
-      <FriendsScreen
-        visible={showingFriends}
-        onClose={() => setShowingFriends(false)}
-        profile={profile}
-      />
-
-      <CoursesScreen
-        visible={showingCourses}
-        onClose={() => setShowingCourses(false)}
-      />
     </View>
   );
 }
@@ -173,110 +141,65 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F0',
-    paddingHorizontal: 24,
+    backgroundColor: colors.bg,
+    paddingHorizontal: spacing.xl,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    marginBottom: 32,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
+    marginBottom: spacing.xl,
   },
   greeting: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
   },
   name: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#2D5016',
-  },
-  headerButton: {
-    color: '#4A7C2E',
-    fontSize: 15,
-    fontWeight: '600',
-    padding: 4,
+    fontSize: fontSize.xxl,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
   signOut: {
-    color: '#888',
-    fontSize: 14,
-    padding: 4,
+    color: colors.textTertiary,
+    fontSize: fontSize.sm,
+    padding: spacing.xs,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  cardAuthor: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2D5016',
-  },
-  cardWhen: {
-    fontSize: 13,
-    color: '#999',
-  },
-  cardText: {
-    fontSize: 17,
-    color: '#222',
-    lineHeight: 24,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
   },
   empty: {
     alignItems: 'center',
     paddingVertical: 80,
   },
   emptyText: {
-    fontSize: 18,
-    color: '#888',
-    marginBottom: 8,
+    fontSize: fontSize.lg,
+    color: colors.textTertiary,
+    marginBottom: spacing.sm,
   },
   emptySub: {
-    fontSize: 15,
-    color: '#AAA',
+    fontSize: fontSize.base,
+    color: colors.textMuted,
   },
   fab: {
     position: 'absolute',
-    left: 24,
-    right: 24,
-    backgroundColor: '#4A7C2E',
-    paddingVertical: 18,
-    borderRadius: 14,
+    left: spacing.xl,
+    right: spacing.xl,
+    bottom: spacing.lg,
+    backgroundColor: colors.primaryLight,
+    paddingVertical: spacing.lg + 2,
+    borderRadius: radius.lg - 2,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    ...shadow.fab,
   },
   fabPressed: {
-    backgroundColor: '#2D5016',
+    backgroundColor: colors.primary,
   },
   fabText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
   },
 });

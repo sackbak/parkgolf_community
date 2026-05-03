@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
-  Modal,
   Pressable,
   Share,
   StyleSheet,
@@ -15,6 +14,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   limit,
   onSnapshot,
@@ -25,16 +25,25 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { friendshipId } from '../utils/friendCode';
+import { colors, fontSize, fontWeight, radius, shadow, spacing } from '../theme';
 
-export default function FriendsScreen({ visible, onClose, profile }) {
+export default function FriendsScreen() {
   const insets = useSafeAreaInsets();
+  const [profile, setProfile] = useState(null);
   const [inputCode, setInputCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [received, setReceived] = useState([]);
   const [friends, setFriends] = useState([]);
 
   useEffect(() => {
-    if (!visible) return;
+    const load = async () => {
+      const snap = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      if (snap.exists()) setProfile(snap.data());
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
     const myUid = auth.currentUser.uid;
 
     const reqQ = query(
@@ -68,7 +77,7 @@ export default function FriendsScreen({ visible, onClose, profile }) {
       unsubReq();
       unsubFriends();
     };
-  }, [visible]);
+  }, []);
 
   const handleShare = async () => {
     if (!profile?.friendCode) return;
@@ -116,14 +125,17 @@ export default function FriendsScreen({ visible, onClose, profile }) {
         return;
       }
 
-      await setDoc(doc(db, 'friendRequests', `${auth.currentUser.uid}_${targetUid}`), {
-        fromUid: auth.currentUser.uid,
-        fromName: profile?.name || '',
-        toUid: targetUid,
-        toName: targetData.name,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-      });
+      await setDoc(
+        doc(db, 'friendRequests', `${auth.currentUser.uid}_${targetUid}`),
+        {
+          fromUid: auth.currentUser.uid,
+          fromName: profile?.name || '',
+          toUid: targetUid,
+          toName: targetData.name,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+        },
+      );
       Alert.alert('보냈어요', `${targetData.name}님에게 친구 요청을 보냈어요.`);
       setInputCode('');
     } catch (e) {
@@ -159,267 +171,246 @@ export default function FriendsScreen({ visible, onClose, profile }) {
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={[styles.container, { paddingTop: 12 }]}>
-        <View style={styles.header}>
-          <Pressable onPress={onClose} hitSlop={12}>
-            <Text style={styles.closeText}>닫기</Text>
-          </Pressable>
-          <Text style={styles.title}>친구</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <FlatList
-          ListHeaderComponent={
-            <>
-              <View style={styles.codeCard}>
-                <Text style={styles.codeLabel}>내 친구 코드</Text>
-                <Text style={styles.codeText} selectable>
-                  {profile?.friendCode || '...'}
-                </Text>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.shareButton,
-                    pressed && styles.shareButtonPressed,
-                  ]}
-                  onPress={handleShare}
-                >
-                  <Text style={styles.shareButtonText}>친구에게 공유하기</Text>
-                </Pressable>
-              </View>
-
-              <Text style={styles.sectionTitle}>친구 추가</Text>
-              <View style={styles.addRow}>
-                <TextInput
-                  style={styles.addInput}
-                  placeholder="친구 코드 6자리"
-                  placeholderTextColor="#AAA"
-                  value={inputCode}
-                  onChangeText={setInputCode}
-                  autoCapitalize="characters"
-                  maxLength={6}
-                />
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.addButton,
-                    (busy || inputCode.length !== 6) && styles.addButtonDisabled,
-                    pressed && styles.addButtonPressed,
-                  ]}
-                  onPress={handleAdd}
-                  disabled={busy || inputCode.length !== 6}
-                >
-                  <Text style={styles.addButtonText}>추가</Text>
-                </Pressable>
-              </View>
-
-              {received.length > 0 && (
-                <>
-                  <Text style={styles.sectionTitle}>
-                    받은 요청 ({received.length})
-                  </Text>
-                  {received.map((req) => (
-                    <View key={req.id} style={styles.requestCard}>
-                      <Text style={styles.requestName}>{req.fromName}</Text>
-                      <View style={styles.requestActions}>
-                        <Pressable
-                          style={styles.acceptBtn}
-                          onPress={() => handleAccept(req)}
-                        >
-                          <Text style={styles.acceptText}>수락</Text>
-                        </Pressable>
-                        <Pressable
-                          style={styles.rejectBtn}
-                          onPress={() => handleReject(req)}
-                        >
-                          <Text style={styles.rejectText}>거절</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  ))}
-                </>
-              )}
-
-              <Text style={styles.sectionTitle}>
-                내 친구 ({friends.length})
-              </Text>
-              {friends.length === 0 && (
-                <Text style={styles.emptyFriends}>
-                  아직 친구가 없어요. 위 코드를 공유해서 추가해보세요.
-                </Text>
-              )}
-            </>
-          }
-          data={friends}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.friendCard}>
-              <Text style={styles.friendName}>{item.name}</Text>
-            </View>
-          )}
-          contentContainerStyle={{
-            paddingHorizontal: 24,
-            paddingBottom: 32 + insets.bottom,
-          }}
-        />
+    <View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
+      <View style={styles.header}>
+        <Text style={styles.title}>친구</Text>
       </View>
-    </Modal>
+
+      <FlatList
+        ListHeaderComponent={
+          <>
+            <View style={styles.codeCard}>
+              <Text style={styles.codeLabel}>내 친구 코드</Text>
+              <Text style={styles.codeText} selectable>
+                {profile?.friendCode || '...'}
+              </Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.shareButton,
+                  pressed && styles.shareButtonPressed,
+                ]}
+                onPress={handleShare}
+              >
+                <Text style={styles.shareButtonText}>친구에게 공유하기</Text>
+              </Pressable>
+            </View>
+
+            <Text style={styles.sectionTitle}>친구 추가</Text>
+            <View style={styles.addRow}>
+              <TextInput
+                style={styles.addInput}
+                placeholder="친구 코드 6자리"
+                placeholderTextColor={colors.textMuted}
+                value={inputCode}
+                onChangeText={setInputCode}
+                autoCapitalize="characters"
+                maxLength={6}
+              />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.addButton,
+                  (busy || inputCode.length !== 6) && styles.addButtonDisabled,
+                  pressed && styles.addButtonPressed,
+                ]}
+                onPress={handleAdd}
+                disabled={busy || inputCode.length !== 6}
+              >
+                <Text style={styles.addButtonText}>추가</Text>
+              </Pressable>
+            </View>
+
+            {received.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>
+                  받은 요청 ({received.length})
+                </Text>
+                {received.map((req) => (
+                  <View key={req.id} style={styles.requestCard}>
+                    <Text style={styles.requestName}>{req.fromName}</Text>
+                    <View style={styles.requestActions}>
+                      <Pressable
+                        style={styles.acceptBtn}
+                        onPress={() => handleAccept(req)}
+                      >
+                        <Text style={styles.acceptText}>수락</Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.rejectBtn}
+                        onPress={() => handleReject(req)}
+                      >
+                        <Text style={styles.rejectText}>거절</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+              </>
+            )}
+
+            <Text style={styles.sectionTitle}>
+              내 친구 ({friends.length})
+            </Text>
+            {friends.length === 0 && (
+              <Text style={styles.emptyFriends}>
+                아직 친구가 없어요. 위 코드를 공유해서 추가해보세요.
+              </Text>
+            )}
+          </>
+        }
+        data={friends}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View style={styles.friendCard}>
+            <Text style={styles.friendName}>{item.name}</Text>
+          </View>
+        )}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.xl,
+          paddingBottom: spacing.xxl + insets.bottom,
+        }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F0',
+    backgroundColor: colors.bg,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-  },
-  closeText: {
-    fontSize: 16,
-    color: '#888',
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2D5016',
+    fontSize: fontSize.xxl,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
   codeCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
     alignItems: 'center',
-    marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    marginBottom: spacing.xxl,
+    ...shadow.card,
   },
   codeLabel: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 8,
+    fontSize: fontSize.sm,
+    color: colors.textTertiary,
+    marginBottom: spacing.sm,
   },
   codeText: {
     fontSize: 40,
-    fontWeight: 'bold',
-    color: '#2D5016',
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
     letterSpacing: 4,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   shareButton: {
-    backgroundColor: '#4A7C2E',
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 10,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
   },
   shareButtonPressed: {
-    backgroundColor: '#2D5016',
+    backgroundColor: colors.primary,
   },
   shareButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semibold,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#444',
-    marginBottom: 12,
-    marginTop: 8,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    marginTop: spacing.sm,
   },
   addRow: {
     flexDirection: 'row',
-    marginBottom: 32,
-    gap: 8,
+    marginBottom: spacing.xxl,
+    gap: spacing.sm,
   },
   addInput: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 18,
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md + 2,
+    fontSize: fontSize.lg,
     letterSpacing: 2,
+    color: colors.text,
   },
   addButton: {
-    backgroundColor: '#4A7C2E',
-    paddingHorizontal: 20,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.xl,
     justifyContent: 'center',
-    borderRadius: 10,
+    borderRadius: radius.md,
   },
   addButtonDisabled: {
-    backgroundColor: '#CCC',
+    backgroundColor: colors.borderStrong,
   },
   addButtonPressed: {
-    backgroundColor: '#2D5016',
+    backgroundColor: colors.primary,
   },
   addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
   },
   requestCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   requestName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2D5016',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
   },
   requestActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   acceptBtn: {
-    backgroundColor: '#4A7C2E',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
   },
   acceptText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontWeight: fontWeight.semibold,
   },
   rejectBtn: {
-    backgroundColor: '#EEE',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    backgroundColor: colors.bgSubtle,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
   },
   rejectText: {
-    color: '#666',
-    fontWeight: '600',
+    color: colors.textSecondary,
+    fontWeight: fontWeight.semibold,
   },
   friendCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.sm,
   },
   friendName: {
-    fontSize: 16,
-    color: '#2D5016',
-    fontWeight: '500',
+    fontSize: fontSize.md,
+    color: colors.primary,
+    fontWeight: fontWeight.medium,
   },
   emptyFriends: {
-    color: '#888',
-    fontSize: 14,
-    paddingVertical: 12,
+    color: colors.textTertiary,
+    fontSize: fontSize.base,
+    paddingVertical: spacing.md,
   },
 });

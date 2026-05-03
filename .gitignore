@@ -34,6 +34,9 @@ yarn-error.*
 .env
 .env*.local
 
+# 작업용 임시 폴더
+_inbox/
+
 # typescript
 *.tsbuildinfo
 

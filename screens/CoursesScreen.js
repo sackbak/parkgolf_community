@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -12,6 +11,7 @@ import MapView, { Marker } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
+import { colors, fontSize, fontWeight, radius, spacing } from '../theme';
 import CourseDetailScreen from './CourseDetailScreen';
 
 const REGION_ORDER = [
@@ -28,7 +28,7 @@ const KOREA_CENTER = {
   longitudeDelta: 6,
 };
 
-export default function CoursesScreen({ visible, onClose }) {
+export default function CoursesScreen() {
   const insets = useSafeAreaInsets();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,14 +39,13 @@ export default function CoursesScreen({ visible, onClose }) {
   const mapRef = useRef(null);
 
   useEffect(() => {
-    if (!visible || courses.length > 0) return;
     const load = async () => {
       const snap = await getDocs(query(collection(db, 'courses'), orderBy('name')));
       setCourses(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       setLoading(false);
     };
     load();
-  }, [visible]);
+  }, []);
 
   const filtered = useMemo(() => {
     let list = courses;
@@ -71,299 +70,295 @@ export default function CoursesScreen({ visible, onClose }) {
     return ['전체', ...REGION_ORDER.filter((r) => r !== '전체' && set.has(r))];
   }, [courses]);
 
-  // 지도 모드에서 너무 많은 핀은 성능 저하 → 200개로 제한
   const mapMarkers = useMemo(() => filtered.slice(0, 200), [filtered]);
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={[styles.container, { paddingTop: 12 }]}>
-        <View style={styles.header}>
-          <Pressable onPress={onClose} hitSlop={12}>
-            <Text style={styles.closeText}>닫기</Text>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>골프장</Text>
+          <Text style={styles.count}>{filtered.length}곳</Text>
+        </View>
+        <View style={styles.toggleWrap}>
+          <Pressable
+            onPress={() => setViewMode('list')}
+            style={[
+              styles.toggleBtn,
+              viewMode === 'list' && styles.toggleBtnActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.toggleText,
+                viewMode === 'list' && styles.toggleTextActive,
+              ]}
+            >
+              목록
+            </Text>
           </Pressable>
-          <Text style={styles.headerTitle}>골프장 ({filtered.length})</Text>
-          <View style={styles.toggleWrap}>
-            <Pressable
-              onPress={() => setViewMode('list')}
+          <Pressable
+            onPress={() => setViewMode('map')}
+            style={[
+              styles.toggleBtn,
+              viewMode === 'map' && styles.toggleBtnActive,
+            ]}
+          >
+            <Text
               style={[
-                styles.toggleBtn,
-                viewMode === 'list' && styles.toggleBtnActive,
+                styles.toggleText,
+                viewMode === 'map' && styles.toggleTextActive,
               ]}
             >
-              <Text
-                style={[
-                  styles.toggleText,
-                  viewMode === 'list' && styles.toggleTextActive,
-                ]}
-              >
-                목록
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setViewMode('map')}
-              style={[
-                styles.toggleBtn,
-                viewMode === 'map' && styles.toggleBtnActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.toggleText,
-                  viewMode === 'map' && styles.toggleTextActive,
-                ]}
-              >
-                지도
-              </Text>
-            </Pressable>
-          </View>
+              지도
+            </Text>
+          </Pressable>
         </View>
+      </View>
 
-        <View style={styles.searchWrap}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="이름이나 주소로 검색"
-            placeholderTextColor="#AAA"
-            value={search}
-            onChangeText={setSearch}
-            autoCorrect={false}
-          />
-        </View>
-
-        <FlatList
-          horizontal
-          data={availableRegions}
-          keyExtractor={(item) => item}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.regionRow}
-          style={styles.regionList}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => setRegion(item)}
-              style={[
-                styles.regionChip,
-                region === item && styles.regionChipActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.regionChipText,
-                  region === item && styles.regionChipTextActive,
-                ]}
-              >
-                {item}
-              </Text>
-            </Pressable>
-          )}
-        />
-
-        {loading ? (
-          <Text style={styles.loadingText}>불러오는 중...</Text>
-        ) : viewMode === 'list' ? (
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={{
-              paddingHorizontal: 24,
-              paddingBottom: 32 + insets.bottom,
-            }}
-            renderItem={({ item }) => (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.card,
-                  pressed && styles.cardPressed,
-                ]}
-                onPress={() => setSelectedCourse(item)}
-              >
-                <Text style={styles.courseName}>{item.name}</Text>
-                <Text style={styles.courseAddress} numberOfLines={1}>
-                  {item.address}
-                </Text>
-                {item.phone ? (
-                  <Text style={styles.coursePhone}>{item.phone}</Text>
-                ) : null}
-              </Pressable>
-            )}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                {search ? '검색 결과가 없어요' : '골프장이 없어요'}
-              </Text>
-            }
-          />
-        ) : (
-          <View style={{ flex: 1 }}>
-            <MapView
-              ref={mapRef}
-              style={{ flex: 1 }}
-              initialRegion={KOREA_CENTER}
-            >
-              {mapMarkers.map((c) => (
-                <Marker
-                  key={c.id}
-                  coordinate={{ latitude: c.lat, longitude: c.lng }}
-                  title={c.name}
-                  description={c.address}
-                  onCalloutPress={() => setSelectedCourse(c)}
-                />
-              ))}
-            </MapView>
-            {filtered.length > mapMarkers.length && (
-              <View style={styles.mapHint}>
-                <Text style={styles.mapHintText}>
-                  지도엔 {mapMarkers.length}곳만 표시 (지역 필터로 좁혀보세요)
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        <CourseDetailScreen
-          course={selectedCourse}
-          visible={!!selectedCourse}
-          onClose={() => setSelectedCourse(null)}
+      <View style={styles.searchWrap}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="이름이나 주소로 검색"
+          placeholderTextColor={colors.textMuted}
+          value={search}
+          onChangeText={setSearch}
+          autoCorrect={false}
         />
       </View>
-    </Modal>
+
+      <FlatList
+        horizontal
+        data={availableRegions}
+        keyExtractor={(item) => item}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.regionRow}
+        style={styles.regionList}
+        renderItem={({ item }) => (
+          <Pressable
+            onPress={() => setRegion(item)}
+            style={[
+              styles.regionChip,
+              region === item && styles.regionChipActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.regionChipText,
+                region === item && styles.regionChipTextActive,
+              ]}
+            >
+              {item}
+            </Text>
+          </Pressable>
+        )}
+      />
+
+      {loading ? (
+        <Text style={styles.loadingText}>불러오는 중...</Text>
+      ) : viewMode === 'list' ? (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{
+            paddingHorizontal: spacing.xl,
+            paddingBottom: spacing.xxl + insets.bottom,
+          }}
+          renderItem={({ item }) => (
+            <Pressable
+              style={({ pressed }) => [
+                styles.card,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={() => setSelectedCourse(item)}
+            >
+              <Text style={styles.courseName}>{item.name}</Text>
+              <Text style={styles.courseAddress} numberOfLines={1}>
+                {item.address}
+              </Text>
+              {item.phone ? (
+                <Text style={styles.coursePhone}>{item.phone}</Text>
+              ) : null}
+            </Pressable>
+          )}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>
+              {search ? '검색 결과가 없어요' : '골프장이 없어요'}
+            </Text>
+          }
+        />
+      ) : (
+        <View style={{ flex: 1 }}>
+          <MapView
+            ref={mapRef}
+            style={{ flex: 1 }}
+            initialRegion={KOREA_CENTER}
+          >
+            {mapMarkers.map((c) => (
+              <Marker
+                key={c.id}
+                coordinate={{ latitude: c.lat, longitude: c.lng }}
+                title={c.name}
+                description={c.address}
+                onCalloutPress={() => setSelectedCourse(c)}
+              />
+            ))}
+          </MapView>
+          {filtered.length > mapMarkers.length && (
+            <View style={styles.mapHint}>
+              <Text style={styles.mapHintText}>
+                지도엔 {mapMarkers.length}곳만 표시 (지역 필터로 좁혀보세요)
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      <CourseDetailScreen
+        course={selectedCourse}
+        visible={!!selectedCourse}
+        onClose={() => setSelectedCourse(null)}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F0',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 12,
+    alignItems: 'flex-end',
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.md,
   },
-  closeText: {
-    fontSize: 16,
-    color: '#888',
+  title: {
+    fontSize: fontSize.xxl,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2D5016',
+  count: {
+    fontSize: fontSize.sm,
+    color: colors.textTertiary,
+    marginTop: 2,
   },
   toggleWrap: {
     flexDirection: 'row',
-    backgroundColor: '#E8E8E0',
-    borderRadius: 8,
-    padding: 2,
+    backgroundColor: colors.bgSubtle,
+    borderRadius: radius.sm,
+    padding: 3,
   },
   toggleBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radius.sm - 2,
   },
   toggleBtnActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bgCard,
   },
   toggleText: {
-    fontSize: 13,
-    color: '#888',
-    fontWeight: '500',
+    fontSize: fontSize.sm,
+    color: colors.textTertiary,
+    fontWeight: fontWeight.medium,
   },
   toggleTextActive: {
-    color: '#2D5016',
-    fontWeight: '600',
+    color: colors.primary,
+    fontWeight: fontWeight.semibold,
   },
   searchWrap: {
-    paddingHorizontal: 24,
-    paddingBottom: 8,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.sm,
   },
   searchInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    fontSize: fontSize.md,
+    color: colors.text,
   },
   regionList: {
     flexGrow: 0,
+    maxHeight: 56,
   },
   regionRow: {
-    paddingHorizontal: 24,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
   },
   regionChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.bgCard,
     borderWidth: 1,
-    borderColor: '#E0E0DA',
-    marginRight: 8,
+    borderColor: colors.border,
+    marginRight: spacing.sm,
     minHeight: 36,
     justifyContent: 'center',
   },
   regionChipActive: {
-    backgroundColor: '#4A7C2E',
-    borderColor: '#4A7C2E',
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primaryLight,
   },
   regionChipText: {
-    fontSize: 15,
-    color: '#666',
+    fontSize: fontSize.base,
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   regionChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontWeight: fontWeight.semibold,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 8,
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginTop: spacing.sm,
   },
   cardPressed: {
-    backgroundColor: '#F0F0EA',
+    backgroundColor: colors.bgSubtle,
   },
   courseName: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#2D5016',
-    marginBottom: 4,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
+    marginBottom: spacing.xs,
   },
   courseAddress: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: fontSize.base,
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   coursePhone: {
-    fontSize: 13,
-    color: '#888',
+    fontSize: fontSize.sm,
+    color: colors.textTertiary,
   },
   loadingText: {
     textAlign: 'center',
-    color: '#888',
-    marginTop: 40,
+    color: colors.textTertiary,
+    marginTop: spacing.xxl,
   },
   emptyText: {
     textAlign: 'center',
-    color: '#888',
-    marginTop: 40,
+    color: colors.textTertiary,
+    marginTop: spacing.xxl,
   },
   mapHint: {
     position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
+    bottom: spacing.lg,
+    left: spacing.lg,
+    right: spacing.lg,
     backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
   },
   mapHintText: {
-    color: '#FFF',
-    fontSize: 12,
+    color: colors.textOnDark,
+    fontSize: fontSize.xs,
     textAlign: 'center',
   },
 });
