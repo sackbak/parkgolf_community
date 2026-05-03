@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -22,6 +22,7 @@ import { auth, db } from '../firebase';
 import { generateFriendCode } from '../utils/friendCode';
 import ComposeScreen from './ComposeScreen';
 import FriendsScreen from './FriendsScreen';
+import CoursesScreen from './CoursesScreen';
 import PostCard from '../components/PostCard';
 
 export default function HomeScreen() {
@@ -30,7 +31,14 @@ export default function HomeScreen() {
   const [posts, setPosts] = useState([]);
   const [composing, setComposing] = useState(false);
   const [showingFriends, setShowingFriends] = useState(false);
+  const [showingCourses, setShowingCourses] = useState(false);
+  const [visibleIds, setVisibleIds] = useState(new Set());
   const insets = useSafeAreaInsets();
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
+  const onViewableItemsChanged = useCallback(({ viewableItems }) => {
+    setVisibleIds(new Set(viewableItems.map((v) => v.item.id)));
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -96,6 +104,9 @@ export default function HomeScreen() {
           <Text style={styles.name}>{profile?.name || '...'}님 👋</Text>
         </View>
         <View style={styles.headerActions}>
+          <Pressable onPress={() => setShowingCourses(true)} hitSlop={12}>
+            <Text style={styles.headerButton}>골프장</Text>
+          </Pressable>
           <Pressable onPress={() => setShowingFriends(true)} hitSlop={12}>
             <Text style={styles.headerButton}>친구</Text>
           </Pressable>
@@ -110,7 +121,11 @@ export default function HomeScreen() {
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <PostCard post={item} />}
+        renderItem={({ item }) => (
+          <PostCard post={item} isVisible={visibleIds.has(item.id)} />
+        )}
+        viewabilityConfig={viewabilityConfig}
+        onViewableItemsChanged={onViewableItemsChanged}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyText}>아직 글이 없어요</Text>
@@ -145,6 +160,11 @@ export default function HomeScreen() {
         visible={showingFriends}
         onClose={() => setShowingFriends(false)}
         profile={profile}
+      />
+
+      <CoursesScreen
+        visible={showingCourses}
+        onClose={() => setShowingCourses(false)}
       />
     </View>
   );
