@@ -52,7 +52,7 @@ export default function ComposeScreen({ visible, onClose, authorName }) {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Videos,
       videoMaxDuration: 10,
-      quality: 0.7,
+      quality: 0.5,
     });
     if (!result.canceled && result.assets?.[0]) {
       setVideoUri(result.assets[0].uri);
@@ -69,7 +69,7 @@ export default function ComposeScreen({ visible, onClose, authorName }) {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Videos,
       videoMaxDuration: 10,
-      quality: 0.7,
+      quality: 0.5,
     });
     if (!result.canceled && result.assets?.[0]) {
       setVideoUri(result.assets[0].uri);

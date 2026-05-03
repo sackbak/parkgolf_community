@@ -1,15 +1,24 @@
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { timeAgo } from '../utils/timeAgo';
 
-export default function PostCard({ post }) {
+export default function PostCard({ post, isVisible }) {
   const player = useVideoPlayer(post.videoUrl || null, (p) => {
     if (post.videoUrl) {
       p.loop = true;
       p.muted = true;
-      p.play();
     }
   });
+
+  useEffect(() => {
+    if (!post.videoUrl || !player) return;
+    if (isVisible) {
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [isVisible, player, post.videoUrl]);
 
   const toggleMute = () => {
     if (player) player.muted = !player.muted;
