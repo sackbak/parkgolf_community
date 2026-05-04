@@ -29,8 +29,19 @@ export default function LoginScreen() {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
+  const [agreedTerms, setAgreedTerms] = useState(false);
+  const [agreedPrivacy, setAgreedPrivacy] = useState(false);
+  const [agreedMarketing, setAgreedMarketing] = useState(false);
 
   const isSignup = mode === 'signup';
+  const consentsOk = !isSignup || (agreedTerms && agreedPrivacy);
+
+  const consentMeta = () => ({
+    consentedAt: serverTimestamp(),
+    consentedTermsVersion: '2026-05-04',
+    consentedPrivacyVersion: '2026-05-04',
+    marketingConsent: agreedMarketing,
+  });
 
   useEffect(() => {
     if (Platform.OS === 'ios') {
@@ -39,6 +50,10 @@ export default function LoginScreen() {
   }, []);
 
   const handleAppleSignIn = async () => {
+    if (!consentsOk) {
+      Alert.alert('동의 필요', '이용약관과 개인정보 처리방침에 동의해주세요.');
+      return;
+    }
     setBusy(true);
     try {
       const credential = await AppleAuthentication.signInAsync({
@@ -73,6 +88,7 @@ export default function LoginScreen() {
           friendCode: generateFriendCode(),
           createdAt: serverTimestamp(),
           provider: 'apple',
+          ...consentMeta(),
         });
       }
     } catch (e) {
@@ -88,6 +104,10 @@ export default function LoginScreen() {
       Alert.alert('빈 칸이 있어요', '모든 항목을 채워주세요.');
       return;
     }
+    if (isSignup && !consentsOk) {
+      Alert.alert('동의 필요', '이용약관과 개인정보 처리방침에 동의해주세요.');
+      return;
+    }
     setBusy(true);
     try {
       if (isSignup) {
@@ -97,6 +117,8 @@ export default function LoginScreen() {
           email,
           friendCode: generateFriendCode(),
           createdAt: serverTimestamp(),
+          provider: 'email',
+          ...consentMeta(),
         });
       } else {
         await signInWithEmailAndPassword(auth, email, password);
@@ -149,10 +171,71 @@ export default function LoginScreen() {
         autoComplete={isSignup ? 'new-password' : 'current-password'}
       />
 
+      {isSignup && (
+        <View style={styles.consentBox}>
+          <Pressable
+            style={styles.consentRow}
+            onPress={() => setAgreedTerms(!agreedTerms)}
+          >
+            <View style={[styles.checkbox, agreedTerms && styles.checkboxOn]}>
+              {agreedTerms && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.consentText}>
+              <Text style={styles.required}>(필수) </Text>
+              <Text
+                style={styles.consentLink}
+                onPress={() => Linking.openURL(URLS.terms)}
+              >
+                이용약관
+              </Text>
+              에 동의합니다.
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.consentRow}
+            onPress={() => setAgreedPrivacy(!agreedPrivacy)}
+          >
+            <View style={[styles.checkbox, agreedPrivacy && styles.checkboxOn]}>
+              {agreedPrivacy && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.consentText}>
+              <Text style={styles.required}>(필수) </Text>
+              <Text
+                style={styles.consentLink}
+                onPress={() => Linking.openURL(URLS.privacy)}
+              >
+                개인정보 처리방침
+              </Text>
+              에 동의합니다.
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.consentRow}
+            onPress={() => setAgreedMarketing(!agreedMarketing)}
+          >
+            <View
+              style={[styles.checkbox, agreedMarketing && styles.checkboxOn]}
+            >
+              {agreedMarketing && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.consentText}>
+              <Text style={styles.optional}>(선택) </Text>
+              마케팅 정보 및 푸시 알림 수신에 동의합니다.
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
       <Pressable
-        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+        style={({ pressed }) => [
+          styles.button,
+          (!consentsOk || busy) && styles.buttonDisabled,
+          pressed && styles.buttonPressed,
+        ]}
         onPress={handleSubmit}
-        disabled={busy}
+        disabled={busy || !consentsOk}
       >
         <Text style={styles.buttonText}>
           {busy ? '잠시만요…' : isSignup ? '가입하기' : '로그인'}
@@ -187,25 +270,6 @@ export default function LoginScreen() {
         />
       )}
 
-      {isSignup && (
-        <Text style={styles.legalText}>
-          가입하면{' '}
-          <Text
-            style={styles.legalLink}
-            onPress={() => Linking.openURL(URLS.terms)}
-          >
-            이용약관
-          </Text>
-          과{' '}
-          <Text
-            style={styles.legalLink}
-            onPress={() => Linking.openURL(URLS.privacy)}
-          >
-            개인정보 처리방침
-          </Text>
-          에 동의하는 것으로 간주됩니다.
-        </Text>
-      )}
     </KeyboardAvoidingView>
   );
 }
@@ -259,17 +323,58 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: 12,
   },
-  legalText: {
-    color: '#888',
-    fontSize: 12,
-    textAlign: 'center',
-    paddingHorizontal: 16,
-    marginTop: 16,
-    lineHeight: 18,
+  consentBox: {
+    marginVertical: 16,
+    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    gap: 12,
   },
-  legalLink: {
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#BBB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxOn: {
+    backgroundColor: '#4A7C2E',
+    borderColor: '#4A7C2E',
+  },
+  checkmark: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  consentText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+  },
+  required: {
+    color: '#C04A4A',
+    fontWeight: '600',
+  },
+  optional: {
+    color: '#888',
+    fontWeight: '600',
+  },
+  consentLink: {
     color: '#4A7C2E',
     textDecorationLine: 'underline',
+    fontWeight: '600',
+  },
+  buttonDisabled: {
+    backgroundColor: '#CCC',
   },
   dividerWrap: {
     flexDirection: 'row',
