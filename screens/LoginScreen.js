@@ -31,7 +31,8 @@ export default function LoginScreen() {
   const [appleAvailable, setAppleAvailable] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
-  const [agreedMarketing, setAgreedMarketing] = useState(false);
+  const [agreedMarketingReceipt, setAgreedMarketingReceipt] = useState(false);
+  const [agreedDataUsage, setAgreedDataUsage] = useState(false);
 
   const isSignup = mode === 'signup';
   const consentsOk = !isSignup || (agreedTerms && agreedPrivacy);
@@ -40,7 +41,8 @@ export default function LoginScreen() {
     consentedAt: serverTimestamp(),
     consentedTermsVersion: '2026-05-04',
     consentedPrivacyVersion: '2026-05-04',
-    marketingConsent: agreedMarketing,
+    marketingReceiptConsent: agreedMarketingReceipt,
+    dataUsageConsent: agreedDataUsage,
   });
 
   useEffect(() => {
@@ -213,16 +215,36 @@ export default function LoginScreen() {
 
           <Pressable
             style={styles.consentRow}
-            onPress={() => setAgreedMarketing(!agreedMarketing)}
+            onPress={() => setAgreedMarketingReceipt(!agreedMarketingReceipt)}
           >
             <View
-              style={[styles.checkbox, agreedMarketing && styles.checkboxOn]}
+              style={[
+                styles.checkbox,
+                agreedMarketingReceipt && styles.checkboxOn,
+              ]}
             >
-              {agreedMarketing && <Text style={styles.checkmark}>✓</Text>}
+              {agreedMarketingReceipt && (
+                <Text style={styles.checkmark}>✓</Text>
+              )}
             </View>
             <Text style={styles.consentText}>
               <Text style={styles.optional}>(선택) </Text>
-              마케팅 정보 및 푸시 알림 수신에 동의합니다.
+              마케팅 정보 수신 (앱 내 광고·푸시 알림) 동의
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.consentRow}
+            onPress={() => setAgreedDataUsage(!agreedDataUsage)}
+          >
+            <View
+              style={[styles.checkbox, agreedDataUsage && styles.checkboxOn]}
+            >
+              {agreedDataUsage && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.consentText}>
+              <Text style={styles.optional}>(선택) </Text>
+              개인정보 마케팅 활용 (맞춤 추천·광고 개인화) 동의
             </Text>
           </Pressable>
         </View>
