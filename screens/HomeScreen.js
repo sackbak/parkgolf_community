@@ -21,6 +21,7 @@ import PostCard from '../components/PostCard';
 export default function HomeScreen() {
   const [profile, setProfile] = useState(null);
   const [friendUids, setFriendUids] = useState([]);
+  const [blockedUids, setBlockedUids] = useState(new Set());
   const [posts, setPosts] = useState([]);
   const [composing, setComposing] = useState(false);
   const [visibleIds, setVisibleIds] = useState(new Set());
@@ -66,6 +67,17 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const myUid = auth.currentUser.uid;
+    const unsub = onSnapshot(
+      collection(db, 'users', myUid, 'blocks'),
+      (snap) => {
+        setBlockedUids(new Set(snap.docs.map((d) => d.id)));
+      },
+    );
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    const myUid = auth.currentUser.uid;
     const visibleAuthors = [myUid, ...friendUids];
     const q = query(
       collection(db, 'posts'),
@@ -74,18 +86,20 @@ export default function HomeScreen() {
     );
     const unsub = onSnapshot(q, (snap) => {
       setPosts(
-        snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            ...data,
-            createdAtDate: data.createdAt?.toDate?.() ?? null,
-          };
-        }),
+        snap.docs
+          .map((d) => {
+            const data = d.data();
+            return {
+              id: d.id,
+              ...data,
+              createdAtDate: data.createdAt?.toDate?.() ?? null,
+            };
+          })
+          .filter((p) => !blockedUids.has(p.authorId)),
       );
     });
     return unsub;
-  }, [friendUids]);
+  }, [friendUids, blockedUids]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
