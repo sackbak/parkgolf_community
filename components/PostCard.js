@@ -56,7 +56,7 @@ export default function PostCard({ post, isVisible }) {
               style: 'destructive',
               onPress: async () => {
                 try {
-                  await blockUser(post.authorId);
+                  await blockUser(post.authorId, post.authorName);
                   Alert.alert('차단됨', `${post.authorName}님을 차단했어요.`);
                 } catch (e) {
                   Alert.alert('오류', e.message);

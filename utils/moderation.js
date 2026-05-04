@@ -52,11 +52,12 @@ export async function reportPost(post, reason = '부적절한 내용') {
   });
 }
 
-export async function blockUser(blockedUid) {
+export async function blockUser(blockedUid, blockedName = '') {
   const myUid = auth.currentUser.uid;
   await setDoc(
     doc(db, 'users', myUid, 'blocks', blockedUid),
     {
+      blockedName,
       blockedAt: serverTimestamp(),
     },
   );

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -10,10 +11,14 @@ import {
   View,
 } from 'react-native';
 import {
+  OAuthProvider,
   createUserWithEmailAndPassword,
+  signInWithCredential,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { URLS } from '../constants/urls';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { generateFriendCode } from '../utils/friendCode';
 
@@ -23,8 +28,60 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
 
   const isSignup = mode === 'signup';
+
+  useEffect(() => {
+    if (Platform.OS === 'ios') {
+      AppleAuthentication.isAvailableAsync().then(setAppleAvailable);
+    }
+  }, []);
+
+  const handleAppleSignIn = async () => {
+    setBusy(true);
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        throw new Error('Apple 인증 토큰을 받지 못했어요.');
+      }
+
+      const provider = new OAuthProvider('apple.com');
+      const firebaseCred = provider.credential({
+        idToken: credential.identityToken,
+        rawNonce: undefined,
+      });
+      const result = await signInWithCredential(auth, firebaseCred);
+
+      // 첫 로그인이면 user 문서 생성
+      const userRef = doc(db, 'users', result.user.uid);
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        const fullName = credential.fullName;
+        const displayName =
+          [fullName?.familyName, fullName?.givenName].filter(Boolean).join('') ||
+          '사용자';
+        await setDoc(userRef, {
+          name: displayName,
+          email: credential.email || result.user.email || '',
+          friendCode: generateFriendCode(),
+          createdAt: serverTimestamp(),
+          provider: 'apple',
+        });
+      }
+    } catch (e) {
+      if (e.code === 'ERR_REQUEST_CANCELED') return;
+      Alert.alert('오류', e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!email || !password || (isSignup && !name)) {
@@ -107,6 +164,48 @@ export default function LoginScreen() {
           {isSignup ? '이미 계정 있어요 →' : '처음이라면 계정 만들기 →'}
         </Text>
       </Pressable>
+
+      {appleAvailable && (
+        <View style={styles.dividerWrap}>
+          <View style={styles.divider} />
+          <Text style={styles.dividerText}>또는</Text>
+          <View style={styles.divider} />
+        </View>
+      )}
+
+      {appleAvailable && (
+        <AppleAuthentication.AppleAuthenticationButton
+          buttonType={
+            AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+          }
+          buttonStyle={
+            AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+          }
+          cornerRadius={12}
+          style={styles.appleButton}
+          onPress={handleAppleSignIn}
+        />
+      )}
+
+      {isSignup && (
+        <Text style={styles.legalText}>
+          가입하면{' '}
+          <Text
+            style={styles.legalLink}
+            onPress={() => Linking.openURL(URLS.terms)}
+          >
+            이용약관
+          </Text>
+          과{' '}
+          <Text
+            style={styles.legalLink}
+            onPress={() => Linking.openURL(URLS.privacy)}
+          >
+            개인정보 처리방침
+          </Text>
+          에 동의하는 것으로 간주됩니다.
+        </Text>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -159,5 +258,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     padding: 12,
+  },
+  legalText: {
+    color: '#888',
+    fontSize: 12,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    marginTop: 16,
+    lineHeight: 18,
+  },
+  legalLink: {
+    color: '#4A7C2E',
+    textDecorationLine: 'underline',
+  },
+  dividerWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#DDD',
+  },
+  dividerText: {
+    color: '#999',
+    fontSize: 13,
+    paddingHorizontal: 12,
+  },
+  appleButton: {
+    height: 50,
+    width: '100%',
+    marginTop: 4,
   },
 });

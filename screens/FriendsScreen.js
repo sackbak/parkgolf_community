@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { friendshipId } from '../utils/friendCode';
+import { unblockUser } from '../utils/moderation';
 import { colors, fontSize, fontWeight, radius, shadow, spacing } from '../theme';
 
 export default function FriendsScreen() {
@@ -34,6 +35,7 @@ export default function FriendsScreen() {
   const [busy, setBusy] = useState(false);
   const [received, setReceived] = useState([]);
   const [friends, setFriends] = useState([]);
+  const [blocked, setBlocked] = useState([]);
 
   useEffect(() => {
     const load = async () => {
@@ -73,11 +75,44 @@ export default function FriendsScreen() {
       );
     });
 
+    const unsubBlocks = onSnapshot(
+      collection(db, 'users', myUid, 'blocks'),
+      (snap) => {
+        setBlocked(
+          snap.docs.map((d) => ({
+            uid: d.id,
+            name: d.data().blockedName || d.id.slice(0, 6),
+          })),
+        );
+      },
+    );
+
     return () => {
       unsubReq();
       unsubFriends();
+      unsubBlocks();
     };
   }, []);
+
+  const handleUnblock = (item) => {
+    Alert.alert(
+      '차단 해제',
+      `${item.name}님 차단을 해제할까요?`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '해제',
+          onPress: async () => {
+            try {
+              await unblockUser(item.uid);
+            } catch (e) {
+              Alert.alert('오류', e.message);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const handleShare = async () => {
     if (!profile?.friendCode) return;
@@ -256,6 +291,26 @@ export default function FriendsScreen() {
             )}
           </>
         }
+        ListFooterComponent={
+          blocked.length > 0 ? (
+            <>
+              <Text style={[styles.sectionTitle, { marginTop: spacing.xxl }]}>
+                차단 목록 ({blocked.length})
+              </Text>
+              {blocked.map((item) => (
+                <View key={item.uid} style={styles.blockedCard}>
+                  <Text style={styles.blockedName}>{item.name}</Text>
+                  <Pressable
+                    style={styles.unblockBtn}
+                    onPress={() => handleUnblock(item)}
+                  >
+                    <Text style={styles.unblockText}>차단 해제</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </>
+          ) : null
+        }
         data={friends}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
@@ -412,5 +467,31 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     fontSize: fontSize.base,
     paddingVertical: spacing.md,
+  },
+  blockedCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    opacity: 0.7,
+  },
+  blockedName: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.medium,
+  },
+  unblockBtn: {
+    backgroundColor: colors.bgSubtle,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
+  },
+  unblockText: {
+    color: colors.textSecondary,
+    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.sm,
   },
 });

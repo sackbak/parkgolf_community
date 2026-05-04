@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "parkgolf_community",
-    "slug": "parkgolf_community",
+    "name": "Go-L 파크골프",
+    "slug": "parkgolf-community",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,15 +10,26 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#F5F5F0"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gol.parkgolf",
+      "buildNumber": "1",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "친구에게 보여줄 영상을 찍을 때 카메라가 필요해요.",
+        "NSMicrophoneUsageDescription": "영상에 소리를 담을 때 마이크가 필요해요.",
+        "NSPhotoLibraryUsageDescription": "갤러리에서 영상을 고를 때 필요해요."
+      }
     },
     "android": {
+      "package": "com.gol.parkgolf",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#F5F5F0"
       },
       "edgeToEdgeEnabled": true
     },
@@ -34,7 +45,13 @@
           "microphonePermission": "영상에 소리를 담을 때 마이크가 필요해요.",
           "photosPermission": "갤러리에서 영상을 고를 때 필요해요."
         }
-      ]
-    ]
+      ],
+      "expo-apple-authentication"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    }
   }
 }
