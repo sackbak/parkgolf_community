@@ -31,7 +31,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F5F5F0"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -50,8 +54,15 @@
     ],
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "202fa668-e012-4742-aa34-e6376cd24096"
       }
+    },
+    "owner": "brandon.kang",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/202fa668-e012-4742-aa34-e6376cd24096"
     }
   }
 }
